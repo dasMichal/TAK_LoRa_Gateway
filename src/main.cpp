@@ -25,8 +25,8 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 #define LED_COUNT 5                                                // How many NeoPixels are attached to the Arduino?
 Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800); // Declare our NeoPixel strip object:
 #define LORA_SPREADING_FACTOR 12
-
 #define SERIAL_BAUD 19200
+#define LORA_FREQUENCY 433E6
 
 // WireGuard configuration --- UPDATE this configuration from JSON
 char private_key[] = WIREGUARD_PRIVATE_KEY;          // [Interface] PrivateKey
@@ -317,7 +317,7 @@ void init_LoRa()
   // LoRa.setPins(4, 2, 3); //NANO
   // LoRa.setPins(ss, reset, dio0);
 
-  if (!LoRa.begin(433E6))
+  if (!LoRa.begin(LORA_FREQUENCY))
   {
     Serial.println("LoRa init failed. Check your connections.");
     sendChat_TAK("Lora Gateway", "Starting LoRa failed!");
