@@ -10,6 +10,7 @@
 #include <WireGuard-ESP32.h>
 #include <ArduinoJson.h>
 #include <string.h>
+#include <PubSubClient.h>
 #include "secrets.h"
 #include "prototypes.h"
 
@@ -38,9 +39,13 @@ int endpoint_port = WIREGUARD_ENDPOINT_PORT;         // [Peer] Endpoint
 static constexpr const uint32_t UPDATE_INTERVAL_MS = 5000;
 static WireGuard wg;
 
+WiFiClient espClient;
+PubSubClient client(espClient);
+
 String recived;
 int rssi;
 int msgtype;
+byte sensorType;
 volatile byte state = LOW;
 int count;
 boolean Wificonnect = true;
@@ -91,12 +96,12 @@ void setup()
   Serial.begin(SERIAL_BAUD);
   delay(1000);
 
-  // Increment boot number and print it every reboot
+  //Increment boot number and print it every reboot
   //++bootCount;
-  // Serial.println("Boot number: " + String(bootCount));
+  //Serial.println("Boot number: " + String(bootCount));
 
-  // print_wakeup_reason();
-  // esp_sleep_enable_ext0_wakeup(GPIO_NUM_33, 1);
+  //print_wakeup_reason();
+  //esp_sleep_enable_ext0_wakeup(GPIO_NUM_33, 1);
   gpio_wakeup_enable(GPIO_NUM_33, GPIO_INTR_HIGH_LEVEL);
   esp_sleep_enable_gpio_wakeup();
 
@@ -122,11 +127,13 @@ void setup()
   display.setCursor(0, 0); // Start at top-left corner
   display.setTextSize(1);  // Normal 1:1 pixel scale
 
-  test();
-
   connectHomeWIFI();
+  mqtt_Connect();
 
   count = 0;
+
+  client.publish("/"MQTT_TOPIC_PREFIX "/" MQTT_TOPIC, "TAK_GATEWAY Online"); // Topic name
+
   display.clearDisplay();
   display.setCursor(0, 0); // Start at top-left corner
 
@@ -155,16 +162,29 @@ void loop()
 
   if (state == HIGH)
   {
-    // print_wakeup_reason();
-    Serial.println("STATE HIGH");
 
-    if (msgtype == 0x3) // Motion Sensor 1
+    
+    if (msgtype == 0x3) // Motion Sensor 
     {
+      Serial.println("Motion Sensor tripped");
       sendChat_TAK("Motion Sensor 1", "Motion Detected");
-      // LED_alert(strip.Color(127, 0, 0), 500);
+
+      //byte sensorType to string conversion
+      String sensorTypeString = String(sensorType);
+      //String to char array conversion
+      char sensorTypeChar[sensorTypeString.length() + 1]; // Create char array
+      sensorTypeString.toCharArray(sensorTypeChar, sensorTypeString.length() + 1); // Copy string to char array
+
+
+      //Send to MQTT
+      client.publish("/"MQTT_TOPIC_PREFIX "/" MQTT_TOPIC "/" MQTT_TOPIC_SUFFIX, sensorTypeChar); // Topic name
+
+      client.publish("/"MQTT_TOPIC_PREFIX "/" MQTT_TOPIC "/keepalive", "hi"); // Topic name
+      //LED_alert(strip.Color(127, 0, 0), 500);
+
       display.clearDisplay();
       display.setCursor(0, 0); // Start at top-left corner
-      display.println("Motion Sensor 1");
+      display.println("Motion Sensor"+sensorTypeString+" ");
       display.println("Tripped");
       display.display();
     }
@@ -210,12 +230,12 @@ void loop()
   }
   else
   {
-    // Serial.println("STATE LOW");
+    
     // Go to sleep now
     // Serial.println("Going to light-sleep now");
     // delay(2000);
-    // esp_deep_sleep_start();
-    // esp_light_sleep_start();
+    //esp_deep_sleep_start();
+    //esp_light_sleep_start();
   }
 }
 
@@ -223,19 +243,21 @@ void onReceive(int packetSize)
 {
   // received a packet
   Serial.println("Received packet");
-
   msgtype = LoRa.read(); // recipient address
-
   switch (msgtype)
   {
-  case 0x3:
-    // Serial.println("Data for me :)");
+  case 0x3:   //Motion Sensor
+
     Serial.print("Data: ");
+    sensorType = LoRa.read();
+    Serial.println(sensorType);
+    /*
     // read packet
     for (int i = 0; i < packetSize; i++)
     {
       Serial.print((char)LoRa.read());
     }
+    */
     Serial.println(" ");
     state = HIGH;
     break;
@@ -436,7 +458,7 @@ void connectHomeWIFI()
 void sendChat_TAK(String user_sender, String user_message)
 {
 
-  if (WiFi.status() == WL_CONNECTED)
+   if (WiFi.status() == WL_CONNECTED)
   { // Check WiFi connection status
 
     HTTPClient http; // Declare object of class HTTPClient
@@ -535,42 +557,52 @@ void postPresence_TAK(String user_uid, String user_name, String user_lng, String
   }
 }
 
-void test()
+// Function to connect to MQTT Broker
+void mqtt_Connect()
 {
 
-  Serial.print("***TEST START");
-  WiFi.mode(WIFI_STA);
-  WiFi.disconnect();
-  delay(100);
+  client.setServer(MQTT_BROKER, MQTT_PORT);
+  //client.setCallback(callback);
 
-  Serial.println("scan start");
+  int count = 0;
 
-  // WiFi.scanNetworks will return the number of networks found
-  int n = WiFi.scanNetworks();
-  Serial.println("scan done");
-  if (n == 0)
+  while (!client.connected() or count < 10)
   {
-    Serial.println("no networks found");
+    Serial.print("Connecting to MQTT -->");
+    if (client.connect("TAK_GATEWAY", MQTT_USER, MQTT_PASSWORD))
+    {
+
+      Serial.println("connected");
+    }
+    else
+    {
+
+      Serial.print("failed with state ");
+      Serial.print(client.state());
+      Serial.println();
+      delay(2000);
+    }
+
+    count++;
+  }
+}
+
+void callback(char *topic, byte *payload, unsigned int length)
+{
+  // callback_flag = true;
+  /*
+  if (running)
+  {
+    callback_flag = true;
   }
   else
   {
-    Serial.print(n);
-    Serial.println(" networks found");
-    for (int i = 0; i < n; ++i)
-    {
-      // Print SSID and RSSI for each network found
-      Serial.print(i + 1);
-      Serial.print(": ");
-      Serial.print(WiFi.SSID(i));
-      Serial.print(" (");
-      Serial.print(WiFi.RSSI(i));
-      Serial.print(")");
-      Serial.println((WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? " " : "*");
-      delay(10);
-    }
+    callback_flag = false;
   }
-  Serial.println("");
-
-  // Wait a bit before scanning again
-  delay(5000);
+*/
+  // clearing Variable what_action
+  // what_action = 0x00;
+  // runOnce = false;
+  Serial.print("Message arrived in topic: ");
+  Serial.println(topic);
 }
