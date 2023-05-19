@@ -12,6 +12,7 @@
 #include <string.h>
 #include "secrets.h"
 #include "prototypes.h"
+#include "config.h"
 
 // SCREEN
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
@@ -37,6 +38,11 @@ int endpoint_port = WIREGUARD_ENDPOINT_PORT;         // [Peer] Endpoint
 
 static constexpr const uint32_t UPDATE_INTERVAL_MS = 5000;
 static WireGuard wg;
+
+// list of wifi networks to connect to in order of preference
+RTC_DATA_ATTR const char *ssid[] = {"Torchwood", "imbabura"};
+RTC_DATA_ATTR const char *password[] = {TORCHWOOD_PWD, IMBABURA_PWD};
+RTC_DATA_ATTR const int num_networks = 2;
 
 String recived;
 int rssi;
@@ -122,9 +128,11 @@ void setup()
   display.setCursor(0, 0); // Start at top-left corner
   display.setTextSize(1);  // Normal 1:1 pixel scale
 
-  test();
+  WiFi.mode(WIFI_STA);
+  connectToWifi();
+  setWiFiPowerSavingMode();
 
-  connectHomeWIFI();
+  // connectHomeWIFI();
 
   count = 0;
   display.clearDisplay();
@@ -132,9 +140,9 @@ void setup()
 
   init_LoRa();
 
-  strip.begin(); // INITIALIZE NeoPixel strip object (REQUIRED)
-  strip.clear();
-  strip.show(); // Turn OFF all pixels ASAP
+  //strip.begin(); // INITIALIZE NeoPixel strip object (REQUIRED)
+  //strip.clear();
+  //strip.show(); // Turn OFF all pixels ASAP
 
   // register the receive callback
   LoRa.onReceive(onReceive);
@@ -155,12 +163,33 @@ void loop()
 
   if (state == HIGH)
   {
-    // print_wakeup_reason();
+    print_wakeup_reason();
     Serial.println("STATE HIGH");
+
+
+    //check wifi connection and reconnect if necessary
+    if (WiFi.status() != WL_CONNECTED)
+    {
+      Serial.println("WiFi Disconnected after Wakeup");
+      display.clearDisplay();
+      display.setCursor(0, 0); // Start at top-left corner
+      display.println("WiFi Disconnected");
+      display.display();
+      connectToWifi();
+    }
+    else
+    {
+      Serial.println("WiFi Connected after Wakeup");
+      display.clearDisplay();
+      display.setCursor(0, 0); // Start at top-left corner
+      display.println("WiFi Connected");
+      display.display();
+    }
 
     if (msgtype == 0x3) // Motion Sensor 1
     {
       sendChat_TAK("Motion Sensor 1", "Motion Detected");
+      Serial.println("Motion Sensor 1 Tripped");
       // LED_alert(strip.Color(127, 0, 0), 500);
       display.clearDisplay();
       display.setCursor(0, 0); // Start at top-left corner
@@ -205,17 +234,20 @@ void loop()
     display.setCursor(0, 0); // Start at top-left corner
     display.display();
     state = LOW;
+    Serial.println("Setting State LOW");
+    delay(500);
     // esp_deep_sleep_start();
-    // esp_light_sleep_start();
+    //esp_light_sleep_start();
   }
   else
   {
-    // Serial.println("STATE LOW");
+    //Serial.println("STATE LOW");
     // Go to sleep now
-    // Serial.println("Going to light-sleep now");
-    // delay(2000);
-    // esp_deep_sleep_start();
-    // esp_light_sleep_start();
+    //Serial.println("Going to light-sleep now");
+    //delay(500);
+    //esp_deep_sleep_start();
+    //esp_light_sleep_start();
+    
   }
 }
 
@@ -305,8 +337,15 @@ void LED_alert(uint32_t color, int wait)
   strip.show();
 }
 
+
+/*
+  Function to initialize the LoRa Module and display the status on the OLED
+  
+*/
 void init_LoRa()
 {
+  display.clearDisplay();  // Clear the display  buffer
+  display.setCursor(0, 0); // Start at top-left corner
   display.println("Setting LoRa Pins:");
   display.display();
   Serial.println(" ");
@@ -324,6 +363,8 @@ void init_LoRa()
     display.clearDisplay();
     display.println("LoRa init failed.");
     display.display();
+    delay(5000);
+    init_LoRa();
     while (1)
       ;
   }
@@ -433,9 +474,14 @@ void connectHomeWIFI()
   }
 }
 
-void sendChat_TAK(String user_sender, String user_message)
-{
 
+/*
+  * Send Chat to TAK Server using HTTP POST 
+
+*/
+bool sendChat_TAK(String user_sender, String user_message)
+{
+  Serial.println("Sending Chat to TAK");
   if (WiFi.status() == WL_CONNECTED)
   { // Check WiFi connection status
 
@@ -460,22 +506,29 @@ void sendChat_TAK(String user_sender, String user_message)
       Serial.print(" ");
       String payload = http.getString();
       Serial.println(payload);
+      
     }
     else
     {
       Serial.print("Error code: ");
       Serial.println(httpResponseCode);
+      
     }
     // Free resources
     http.end();
+    return true;
   }
   else
   {
-
+    //connectToWifi();
     Serial.println("Error in WiFi connection");
+    return false;
   }
 }
 
+/*
+  * Send Presence to TAK Server 
+*/
 void postPresence_TAK(String user_uid, String user_name, String user_lng, String user_lat)
 {
 
@@ -535,15 +588,41 @@ void postPresence_TAK(String user_uid, String user_name, String user_lng, String
   }
 }
 
-void test()
+void connectWireguard()
+{
+  Serial.println("Adjusting system time");
+  display.println("Adjusting system time");
+  display.display();
+  configTime(9 * 60 * 60, 0, "0.de.pool.ntp.org", "time.google.com");
+  delay(1000);
+  display.clearDisplay();
+  display.setCursor(0, 0); // Start at top-left corner
+  Serial.println("Initializing WireGuard...");
+  display.println("Initializing\nWireGuard...");
+
+  display.display();
+  wg.begin(
+      local_ip,
+      private_key,
+      endpoint_address,
+      public_key,
+      endpoint_port);
+  delay(1000);
+  Serial.println("WireGuard initialized");
+}
+
+void connectToWifi()
 {
 
-  Serial.print("***TEST START");
+
+
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
   delay(100);
 
   Serial.println("scan start");
+  display.println("scan start");
+  display.display();
 
   // WiFi.scanNetworks will return the number of networks found
   int n = WiFi.scanNetworks();
@@ -568,9 +647,94 @@ void test()
       Serial.println((WiFi.encryptionType(i) == WIFI_AUTH_OPEN) ? " " : "*");
       delay(10);
     }
+
+    bool foundNetwork = false;
+    // check if one of the networks is in the  *ssid[] list of known networks
+    for (int i = 0; i < n; i++)
+    {
+      for (int j = 0; j < num_networks; j++)
+      {
+
+        if (WiFi.SSID(i) == ssid[j])
+        {
+          Serial.println("Found a known network");
+          Serial.println(WiFi.SSID(i));
+          Serial.print("Connecting to WiFi");
+
+          WiFi.begin(ssid[j], password[j]);
+          count = 0;
+
+          while (WiFi.status() != WL_CONNECTED)
+          { // Wait for the WiFI connection completion
+
+            delay(200);
+            Serial.print(".");
+
+            if (count > 10)
+            {
+              Serial.println("");
+              Wificonnect = false;
+              display.println("Connection Failed");
+              display.display();
+              Serial.println("No WiFi connection ");
+              delay(500);
+              break;
+            }
+            count++;
+
+            delay(200);
+          }
+
+          // switch to station mode and connect to the network
+
+          if (WiFi.status() != WL_CONNECTED)
+          {
+            Serial.println("Connection Failed");
+            display.println("Connection Failed");
+            display.display();
+            delay(500);
+            continue;
+          }
+          else
+          {
+            Serial.println("");
+            Serial.println("Connected to WiFi");
+            display.println("Connected to WiFi");
+            display.display();
+            connectWireguard();
+            delay(500);
+            foundNetwork = true;
+            break;
+
+          }
+          Serial.println("Exiting WiFi loop");
+        }
+      }
+
+      if (foundNetwork)
+      {
+        break;
+      }
+    }
+
+    if (WiFi.status() == WL_CONNECTED)
+    {
+
+      sendChat_TAK("Lora Gateway", "Lora Sensor Gateway Online");
+    }
   }
   Serial.println("");
 
   // Wait a bit before scanning again
   delay(5000);
+}
+
+/*
+  * Function to set the WiFi power saving mode to true 
+  * This will reduce the power consumption of the ESP32
+  * The WiFi connection will be slower
+  * 
+*/
+void setWiFiPowerSavingMode(){
+    WiFi.setSleep(true);
 }
