@@ -1,14 +1,13 @@
-#include <WiFi.h>
-#include <HTTPClient.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+// Purpose: Handle WiFi connection and WireGuard connection
 #include <WireGuard-ESP32.h>
 
 //--Custom libraries--//
+#include "wifiHandler.h"
 #include "displayHandler.h"
 #include "secrets.h"
 
-Adafruit_SSD1306 display = getDisplay();
+
+
 
 // list of wifi networks to connect to in order of preference
 RTC_DATA_ATTR const char *ssid[] = {"Torchwood", "imbabura"};
@@ -27,7 +26,7 @@ static WireGuard wg;
 
 boolean Wificonnect = true;
 int count;
-
+bool isConnected = false;
 
 
 void connectToKnownWIFI()
@@ -38,8 +37,8 @@ void connectToKnownWIFI()
     delay(100);
 
     Serial.println("scan start");
-    display.println("scan start");
-    display.display();
+    display->println("scan start");
+    display->display();
 
     // WiFi.scanNetworks will return the number of networks found
     int n = WiFi.scanNetworks();
@@ -66,7 +65,7 @@ void connectToKnownWIFI()
         }
 
         
-        bool isConnected = false;
+        isConnected = false;
         // check if one of the networks is in the  *ssid[] list of known networks
         for (int i = 0; i < n; i++)
         {
@@ -86,8 +85,8 @@ void connectToKnownWIFI()
                     if (!isConnected)
                     {
                         Serial.println("Connection Failed");
-                        display.println("Connection Failed");
-                        display.display();
+                        display->println("Connection Failed");
+                        display->display();
                         delay(500);
                         continue;
                     }
@@ -95,9 +94,9 @@ void connectToKnownWIFI()
                     {
                         Serial.println("");
                         Serial.println("Connected to WiFi");
-                        display.println("Connected to WiFi");
-                        display.display();
-                        connectWireguard();
+                        display->println("Connected to WiFi");
+                        display->display();
+                        //connectWireguard();
                         delay(500);
                         
                         break;
@@ -140,8 +139,8 @@ bool connectToWifiNetwork(const char *ssid, const char *password)
         {
             Serial.println("");
             Wificonnect = false;
-            display.println("Connection Failed");
-            display.display();
+            display->println("Connection Failed");
+            display->display();
             Serial.println("No WiFi connection ");
             delay(500);
             return false;
@@ -153,8 +152,8 @@ bool connectToWifiNetwork(const char *ssid, const char *password)
     Serial.println("WiFi connected");
     Serial.println("IP address: ");
     Serial.println(WiFi.localIP());
-    display.println("WiFi connected");
-    display.display();
+    display->println("WiFi connected");
+    display->display();
     return true;
 }
 
@@ -174,15 +173,15 @@ void setWiFiPowerSavingMode()
 void connectWireguard()
 {
     Serial.println("Adjusting system time");
-    display.println("Adjusting system time");
-    display.display();
+    display->println("Adjusting system time");
+    display->display();
     configTime(9 * 60 * 60, 0, "0.de.pool.ntp.org", "time.google.com");
     delay(1000);
     clearAndResetCursor();
     Serial.println("Initializing WireGuard...");
-    display.println("Initializing\nWireGuard...");
+    display->println("Initializing\nWireGuard...");
 
-    display.display();
+    display->display();
     wg.begin(
         local_ip,
         private_key,

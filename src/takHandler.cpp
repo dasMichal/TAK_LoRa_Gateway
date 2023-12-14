@@ -2,13 +2,17 @@
 
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include <WireGuard-ESP32.h>
 #include <ArduinoJson.h>
 #include <string.h>
-#include "secrets.h"
-#include "prototypes.h"
-#include "config.h"
 
+
+#include "secrets.h"
+#include "config.h"
+#include "takHandler.h"
+
+
+
+String UID = "";
 
 
 /*

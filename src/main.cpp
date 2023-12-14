@@ -1,54 +1,41 @@
 #include <Arduino.h>
 #include <SPI.h>
-#include <LoRa.h>
 #include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
-// #include <Adafruit_NeoPixel.h>
-#include <WiFi.h>
-#include <HTTPClient.h>
-#include <WireGuard-ESP32.h>
+
 #include <ArduinoJson.h>
 #include <string.h>
 
 //--Custom libraries--//
+#include "main.h"
 #include "secrets.h"
-#include "prototypes.h"
 #include "config.h"
 #include "displayHandler.h"
 #include "wifiHandler.h"
 #include "incomingMessagesHandler.h"
+#include "loraHandler.h"
 
 
-Adafruit_SSD1306 display = getDisplay();
+//Adafruit_SSD1306 display = getDisplay();
 
 // #define LED_PIN 26
 // #define LED_COUNT 5                                                // How many NeoPixels are attached to the Arduino?
 // Adafruit_NeoPixel strip(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800); // Declare our NeoPixel strip object:
-#define LORA_SPREADING_FACTOR 12
+//#define LORA_SPREADING_FACTOR 12
+//#define LORA_FREQUENCY 433E6
+
 #define SERIAL_BAUD 19200
-#define LORA_FREQUENCY 433E6
 
 
 
-// list of wifi networks to connect to in order of preference
-RTC_DATA_ATTR const char *ssid[] = {"Torchwood", "imbabura"};
-RTC_DATA_ATTR const char *password[] = {TORCHWOOD_PWD, IMBABURA_PWD};
-RTC_DATA_ATTR const int num_networks = 2;
 
 String recived;
 int rssi;
 int msgtype;
 volatile byte state = LOW;
-int count;
-boolean Wificonnect = true;
-byte GPS_State;
 
-String LatString = "";
-String LngString = "";
-String SpeedString = "";
-String AttitudeString = "";
-String UID = "";
+
+
+
 
 //------------------
 
@@ -99,21 +86,22 @@ void setup()
   esp_sleep_enable_gpio_wakeup();
 
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
+  if (!display->begin(SSD1306_SWITCHCAPVCC, 0x3C))
   { // Address 0x3C for 128x32
     Serial.println(F("SSD1306 allocation failed"));
     for (;;)
       ; // Don't proceed, loop forever
   }
-
   displayBootscreen();
+  display->clearDisplay();
+  display->setCursor(0, 0); // Start at top-left corner
 
   WiFi.mode(WIFI_STA);
   connectToKnownWIFI();
   setWiFiPowerSavingMode();
 
-  display.clearDisplay();
-  display.setCursor(0, 0); // Start at top-left corner
+  display->clearDisplay();
+  display->setCursor(0, 0); // Start at top-left corner
 
   init_LoRa();
 
@@ -122,16 +110,16 @@ void setup()
 
   clearAndResetCursor();
   Serial.println("Setup Finished");
-  display.println("Setup Finished");
-  display.display();
+  display->println("Setup Finished");
+  display->display();
 
   LoRa.receive(); // put the radio into receive mode
 }
 
 void loop()
 {
-  display.clearDisplay();
-  display.display();
+  display->clearDisplay();
+  display->display();
 
   if (state == HIGH)
   {
@@ -143,23 +131,24 @@ void loop()
     {
       Serial.println("WiFi Disconnected after Wakeup");
       clearAndResetCursor();
-      display.println("WiFi Disconnected");
-      display.display();
-      connectToWifi();
+      display->println("WiFi Disconnected");
+      display->display();
+      //connectToWifi();
+      connectToKnownWIFI();
     }
     else
     {
       Serial.println("WiFi Connected after Wakeup");
       clearAndResetCursor();
-      display.println("WiFi Connected");
-      display.display();
+      display->println("WiFi Connected");
+      display->display();
     }
 
     processIncomingMessage(msgtype);
 
     delay(1000);
     clearAndResetCursor();
-    display.display();
+    display->display();
     state = LOW;
     Serial.println("Setting State LOW");
     delay(500);
@@ -187,42 +176,11 @@ void onReceive(int packetSize)
   switch (msgtype)
   {
   case 0x01:
-    int counter;
+    //TODO: GPS as Protobuf but have to update the GPS Tracker first to send Protobuf instead of String
 
-    GPS_State = LoRa.read();
-
-    if (GPS_State == 0) // No GPS FIX
-    {
-      Serial.print("No GPS FIX from Tracker: ");
-      Serial.println(msgtype, HEX);
-      counter = LoRa.read();
-
-      Serial.print("Data: ");
-      Serial.println(GPS_State);
-      Serial.println(counter);
-    }
-    else if (GPS_State == 1) // GPS FIX
-    {
-      Serial.print("GPS fix from Tracker: ");
-      Serial.println(msgtype, HEX);
-
-      // Reciving the GPS Data
-      // UID = LoRa.readStringUntil('\n');
-      LatString = LoRa.readStringUntil('\n');
-      LngString = LoRa.readStringUntil('\n');
-      // SpeedString = LoRa.readStringUntil('\n');
-      // AttitudeString = LoRa.readStringUntil('\n');
-
-      Serial.println(LatString);
-      Serial.println(LngString);
-      // Serial.println(SpeedString);
-      // Serial.println(AttitudeString);
-    }
-
-    state = HIGH;
     break;
   case 0x3:
-    // Serial.println("Data for me :)");
+    
     Serial.print("Data: ");
     // read packet
     for (int i = 0; i < packetSize; i++)
@@ -265,156 +223,5 @@ void LED_alert(uint32_t color, int wait)
 }
 */
 
-/*
-  Function to initialize the LoRa Module and display the status on the OLED
 
-*/
-void init_LoRa()
-{
-  clearAndResetCursor();
-  display.println("Setting LoRa Pins:");
-  display.display();
-  Serial.println(" ");
-  Serial.println("Setting LoRa Pins");
-
-  // LoRa.setPins(15, 5, 4); //NODE MCU
-  LoRa.setPins(5, 32, 33); // NODE MCU32
-  // LoRa.setPins(4, 2, 3); //NANO
-  // LoRa.setPins(ss, reset, dio0);
-
-  if (!LoRa.begin(LORA_FREQUENCY))
-  {
-    Serial.println("LoRa init failed. Check your connections.");
-    sendChat_TAK("Lora Gateway", "Starting LoRa failed!");
-    display.clearDisplay();
-    display.println("LoRa init failed.");
-    display.display();
-    delay(5000);
-    init_LoRa();
-    while (1)
-      ;
-  }
-  else
-  {
-
-    // put the radio into receive mode
-    display.println("LoRa init sucessfull");
-    display.display();
-    Serial.println("LoRa init sucessfull");
-    LoRa.receive();
-    LoRa.enableCrc();
-    LoRa.setSpreadingFactor(LORA_SPREADING_FACTOR);
-  }
-}
-
-/*
-  * Send Chat to TAK Server using HTTP POST
-
-*/
-bool sendChat_TAK(String user_sender, String user_message)
-{
-  Serial.println("Sending Chat to TAK");
-  if (WiFi.status() == WL_CONNECTED)
-  { // Check WiFi connection status
-
-    HTTPClient http; // Declare object of class HTTPClient
-
-    http.begin("http://192.168.178.42:19023/ManageChat/postChatToAll"); // Specify request destination
-                                                                        // http.addHeader("Content-Type", "application/x-www-form-urlencoded", false, true);
-
-    http.addHeader("Content-Type", "application/json");
-    http.addHeader("Authorization", APIKEY);
-    // int httpResponseCode = http.POST("{\"message\":\"Movement\",\"sender\":\"Motion Sensor\"}");
-
-    int httpResponseCode = http.POST("{\"message\":\"" + user_message + "\",\"sender\": \"" + user_sender + "\" }");
-
-    // int httpResponseCode = http.GET();
-    // String payload = http.getString();
-
-    if (httpResponseCode > 0)
-    {
-      Serial.print("HTTP Response code: ");
-      Serial.print(httpResponseCode);
-      Serial.print(" ");
-      String payload = http.getString();
-      Serial.println(payload);
-    }
-    else
-    {
-      Serial.print("Error code: ");
-      Serial.println(httpResponseCode);
-    }
-    // Free resources
-    http.end();
-    return true;
-  }
-  else
-  {
-    // connectToWifi();
-    Serial.println("Error in WiFi connection");
-    return false;
-  }
-}
-
-/*
- * Send Presence to TAK Server
- */
-void postPresence_TAK(String user_uid, String user_name, String user_lng, String user_lat)
-{
-
-  if (WiFi.status() == WL_CONNECTED)
-  { // Check WiFi connection status
-
-    HTTPClient http; // Declare object of class HTTPClient
-
-    http.begin("http://192.168.178.42:19023/ManagePresence/postPresence"); // Specify request destination
-    http.addHeader("Content-Type", "application/json");
-    http.addHeader("Authorization", APIKEY);
-
-    user_lat.trim();
-    user_lng.trim();
-    // user_uid.trim();
-    int httpResponseCode;
-
-    DynamicJsonDocument doc(2048);
-    doc["uid"] = user_uid;
-    doc["how"] = "nonCoT";
-    doc["name"] = user_name;
-    doc["longitude"] = user_lng;
-    doc["latitude"] = user_lat;
-    doc["role"] = "Team Member";
-    doc["team"] = "Red";
-
-    // Serialize JSON document
-    String json;
-    serializeJson(doc, json);
-
-    // Serial.println(json);
-
-    // Send the request
-    httpResponseCode = http.POST(json);
-
-    if (httpResponseCode > 0)
-    {
-      Serial.print("HTTP Response code: ");
-      Serial.print(httpResponseCode);
-      Serial.print(" ");
-      String payload = http.getString();
-      Serial.println(payload);
-      UID = payload;
-    }
-    else
-    {
-      Serial.print("Error code: ");
-      Serial.println(httpResponseCode);
-    }
-    // Free resources
-    http.end();
-  }
-  else
-  {
-
-    Serial.println("Error in WiFi connection");
-  }
-}
 
