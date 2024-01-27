@@ -5,6 +5,7 @@
 #include <ArduinoJson.h>
 #include <string.h>
 
+
 //--Custom libraries--//
 #include "main.h"
 #include "secrets.h"
@@ -24,9 +25,6 @@
 //#define LORA_FREQUENCY 433E6
 
 #define SERIAL_BAUD 19200
-
-
-
 
 String recived;
 int rssi;
@@ -84,6 +82,8 @@ void setup()
   // esp_sleep_enable_ext0_wakeup(GPIO_NUM_33, 1);
   gpio_wakeup_enable(GPIO_NUM_33, GPIO_INTR_HIGH_LEVEL);
   esp_sleep_enable_gpio_wakeup();
+  //esp_sleep_enable_ulp_wakeup();
+  esp_sleep_enable_wifi_wakeup();
 
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   if (!display->begin(SSD1306_SWITCHCAPVCC, 0x3C))
@@ -114,12 +114,16 @@ void setup()
   display->display();
 
   LoRa.receive(); // put the radio into receive mode
+  drawStats(0,LoRa.packetRssi(),WiFi.RSSI());
+  //esp_sleep_enable_wifi_wakeup();
+
+  
 }
 
 void loop()
 {
-  display->clearDisplay();
-  display->display();
+  //display->clearDisplay();
+  //display->display();
 
   if (state == HIGH)
   {
@@ -152,19 +156,30 @@ void loop()
     state = LOW;
     Serial.println("Setting State LOW");
     delay(500);
-    // esp_deep_sleep_start();
-    // esp_light_sleep_start();
+    //drawStats(1,LoRa.packetRssi(),WiFi.RSSI());
+    //esp_deep_sleep_start();
+
+    esp_sleep_enable_wifi_wakeup();
+    esp_light_sleep_start();
+    
+  
   }
   else
   {
-    // Serial.println("STATE LOW");
+    Serial.println("STATE LOW");
     //  Go to sleep now
-    // Serial.println("Going to light-sleep now");
-    // delay(500);
-    // esp_deep_sleep_start();
-    // esp_light_sleep_start();
+    Serial.println("Going to light-sleep now");
+    delay(500);
+
+    drawStats(1,LoRa.packetRssi(),WiFi.RSSI());
+    //esp_deep_sleep_start();
+    esp_sleep_enable_wifi_wakeup();
+    esp_light_sleep_start();
   }
 }
+
+
+
 
 void onReceive(int packetSize)
 {

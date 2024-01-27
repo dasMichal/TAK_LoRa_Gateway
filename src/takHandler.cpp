@@ -27,7 +27,7 @@ bool sendChat_TAK(String user_sender, String user_message)
 
     HTTPClient http; // Declare object of class HTTPClient
 
-    http.begin("http://192.168.178.42:19023/ManageChat/postChatToAll"); // Specify request destination
+    http.begin("http://192.168.178.130:19023/ManageChat/postChatToAll"); // Specify request destination
                                                                         // http.addHeader("Content-Type", "application/x-www-form-urlencoded", false, true);
 
     http.addHeader("Content-Type", "application/json");

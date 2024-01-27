@@ -4,9 +4,8 @@
 //--Custom libraries--//
 #include "wifiHandler.h"
 #include "displayHandler.h"
+#include "takHandler.h"
 #include "secrets.h"
-
-
 
 
 // list of wifi networks to connect to in order of preference
@@ -31,7 +30,7 @@ bool isConnected = false;
 
 void connectToKnownWIFI()
 {
-
+    clearAndResetCursor();
     WiFi.mode(WIFI_STA);
     WiFi.disconnect();
     delay(100);
@@ -88,6 +87,8 @@ void connectToKnownWIFI()
                         display->println("Connection Failed");
                         display->display();
                         delay(500);
+                        //try again recursively
+                        connectToKnownWIFI();
                         continue;
                     }
                     else
@@ -107,7 +108,7 @@ void connectToKnownWIFI()
 
             if (isConnected)
             {
-                //sendChat_TAK("Lora Gateway", "Lora Sensor Gateway Online");
+                sendChat_TAK("Lora Gateway", "Lora Sensor Gateway Online");
                 break;
             }
         }
@@ -118,6 +119,11 @@ void connectToKnownWIFI()
     // Wait a bit before scanning again
     delay(5000);
 }
+
+
+
+
+
 
 
 

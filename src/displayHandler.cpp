@@ -37,4 +37,48 @@ void clearAndResetCursor() {
   display->setCursor(0, 0);
 }
 
+void drawLine(int y) {
+  Adafruit_SSD1306* display = getDisplay();
+  display->drawFastHLine(0, y, SCREEN_WIDTH, SSD1306_WHITE);
+}
+
+void drawStats(int cpuSleepState, int loraSignalStrength, int wifiStrength) {
+  Adafruit_SSD1306* display = getDisplay();
+  Serial.println("Displaying Stats");
+  Serial.println(cpuSleepState);
+  Serial.println(loraSignalStrength);
+  Serial.println(wifiStrength);
+
+
+  clearAndResetCursor();
+  // Clear the display buffer
+  display->clearDisplay();
+
+  // Display CPU Sleep State
+  display->setTextSize(1);
+  display->setTextColor(SSD1306_WHITE);
+  display->setCursor(0, 0);
+  display->print("CPU Sleep State:");
+  display->println(cpuSleepState);
+  drawLine(12);
+
+  // Display LoRa Signal Strength
+  display->setCursor(0, 18);
+  display->print("LoRa Signal:");
+  display->println(loraSignalStrength);
+  drawLine(47);
+  display->setCursor(0, 55);
+
+  // Display WiFi Strength
+  display->setCursor(0, 75);
+  display->println("WiFi Strength:");
+  drawLine(90);
+  display->setCursor(20, 95);
+  display->print("   ");
+  display->println(wifiStrength);
+
+  // Display the buffer
+  display->display();
+}
+
 

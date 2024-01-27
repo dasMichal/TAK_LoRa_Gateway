@@ -1,6 +1,7 @@
 #include <Arduino.h>
 //--Custom libraries--//
 #include "displayHandler.h"
+#include "takHandler.h"
 
 
 
@@ -11,7 +12,7 @@ void processIncomingMessage(int msgType)
 
     if (msgType == 0x3) // Motion Sensor 1
     {
-        //sendChat_TAK("Motion Sensor 1", "Motion Detected");
+        sendChat_TAK("Motion Sensor 1", "Motion Detected");
         Serial.println("Motion Sensor 1 Tripped");
         // LED_alert(strip.Color(127, 0, 0), 500);
         clearAndResetCursor();
