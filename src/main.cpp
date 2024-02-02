@@ -79,8 +79,8 @@ void setup()
   // Serial.println("Boot number: " + String(bootCount));
 
   // print_wakeup_reason();
-  // esp_sleep_enable_ext0_wakeup(GPIO_NUM_33, 1);
-  gpio_wakeup_enable(GPIO_NUM_33, GPIO_INTR_HIGH_LEVEL);
+  //esp_sleep_enable_ext0_wakeup(GPIO_NUM_33, 1);  //For Deep Sleep, 1 = High, 0 = Low
+  gpio_wakeup_enable(GPIO_NUM_33, GPIO_INTR_HIGH_LEVEL); //For Light Sleep, INTR_HIGH_LEVEL = High, INTR_LOW_LEVEL = Low
   esp_sleep_enable_gpio_wakeup();
   //esp_sleep_enable_ulp_wakeup();
   esp_sleep_enable_wifi_wakeup();
