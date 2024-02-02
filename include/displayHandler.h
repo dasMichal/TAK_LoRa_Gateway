@@ -21,4 +21,4 @@ void displayHandler(void);
 void displayBootscreen();
 void clearAndResetCursor();
 void drawLine(int y);
-void drawStats(int cpuSleepState, int loraSignalStrength, int wifiStrength);
+void drawStats(int cpuSleepState, int loraSignalStrength, int wifiStrength, String wifiSSID);

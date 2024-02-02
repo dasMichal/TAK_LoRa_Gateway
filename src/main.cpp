@@ -84,6 +84,9 @@ void setup()
   esp_sleep_enable_gpio_wakeup();
   //esp_sleep_enable_ulp_wakeup();
   esp_sleep_enable_wifi_wakeup();
+  //wake every 5 seconds and execute
+  esp_sleep_enable_timer_wakeup(10000000);
+
 
   // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   if (!display->begin(SSD1306_SWITCHCAPVCC, 0x3C))
@@ -114,7 +117,7 @@ void setup()
   display->display();
 
   LoRa.receive(); // put the radio into receive mode
-  drawStats(0,LoRa.packetRssi(),WiFi.RSSI());
+  drawStats(0,LoRa.packetRssi(),WiFi.RSSI(),getConnectedSSID());
   //esp_sleep_enable_wifi_wakeup();
 
   
@@ -124,11 +127,13 @@ void loop()
 {
   //display->clearDisplay();
   //display->display();
+  drawStats(0,LoRa.packetRssi(),WiFi.RSSI(),getConnectedSSID());
 
   if (state == HIGH)
   {
     print_wakeup_reason();
     Serial.println("STATE HIGH");
+    
 
     // check wifi connection and reconnect if necessary
     if (WiFi.status() != WL_CONNECTED)
@@ -139,6 +144,7 @@ void loop()
       display->display();
       //connectToWifi();
       connectToKnownWIFI();
+      drawStats(0,LoRa.packetRssi(),WiFi.RSSI(),getConnectedSSID());
     }
     else
     {
@@ -156,7 +162,8 @@ void loop()
     state = LOW;
     Serial.println("Setting State LOW");
     delay(500);
-    //drawStats(1,LoRa.packetRssi(),WiFi.RSSI());
+    
+    drawStats(1,LoRa.packetRssi(),WiFi.RSSI(),getConnectedSSID());
     //esp_deep_sleep_start();
 
     esp_sleep_enable_wifi_wakeup();
@@ -171,7 +178,7 @@ void loop()
     Serial.println("Going to light-sleep now");
     delay(500);
 
-    drawStats(1,LoRa.packetRssi(),WiFi.RSSI());
+    drawStats(1,LoRa.packetRssi(),WiFi.RSSI(),getConnectedSSID());
     //esp_deep_sleep_start();
     esp_sleep_enable_wifi_wakeup();
     esp_light_sleep_start();

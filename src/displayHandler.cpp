@@ -42,12 +42,13 @@ void drawLine(int y) {
   display->drawFastHLine(0, y, SCREEN_WIDTH, SSD1306_WHITE);
 }
 
-void drawStats(int cpuSleepState, int loraSignalStrength, int wifiStrength) {
+void drawStats(int cpuSleepState, int loraSignalStrength, int wifiStrength, String wifiSSID) {
   Adafruit_SSD1306* display = getDisplay();
   Serial.println("Displaying Stats");
   Serial.println(cpuSleepState);
   Serial.println(loraSignalStrength);
   Serial.println(wifiStrength);
+  Serial.println(wifiSSID);
 
 
   clearAndResetCursor();
@@ -59,23 +60,32 @@ void drawStats(int cpuSleepState, int loraSignalStrength, int wifiStrength) {
   display->setTextColor(SSD1306_WHITE);
   display->setCursor(0, 0);
   display->print("CPU Sleep State:");
-  display->println(cpuSleepState);
-  drawLine(12);
 
+  //If the CPU Sleep State is 0, then the CPU is awake and print awake
+  if (cpuSleepState == 0) {
+    display->println("Awake");
+  }
+  //If the CPU Sleep State is 1, then the CPU is light sleep and print asleep
+  else if (cpuSleepState == 1) {
+    display->println("Light");
+  }
+  //If the CPU Sleep State is 2, then the CPU is deep sleep and print asleep
+  else if (cpuSleepState == 2) {
+    display->println("Deep");
+  }
+  
   // Display LoRa Signal Strength
-  display->setCursor(0, 18);
+  //display->setCursor(0, 13);
   display->print("LoRa Signal:");
   display->println(loraSignalStrength);
-  drawLine(47);
-  display->setCursor(0, 55);
-
   // Display WiFi Strength
-  display->setCursor(0, 75);
-  display->println("WiFi Strength:");
-  drawLine(90);
-  display->setCursor(20, 95);
-  display->print("   ");
+  //display->setCursor(0, 30);
+  display->print("WiFi Strength:");
   display->println(wifiStrength);
+  //WifiSSID
+  //display->setCursor(0, 45);
+  display->print("WiFi SSID:");
+  display->println(wifiSSID);
 
   // Display the buffer
   display->display();

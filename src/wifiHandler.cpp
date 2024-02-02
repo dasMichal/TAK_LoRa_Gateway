@@ -12,6 +12,7 @@
 RTC_DATA_ATTR const char *ssid[] = {"Torchwood", "imbabura"};
 RTC_DATA_ATTR const char *password[] = {TORCHWOOD_PWD, IMBABURA_PWD};
 RTC_DATA_ATTR const int num_networks = 2;
+RTC_DATA_ATTR int network_index = 0;
 
 // WireGuard configuration --- UPDATE this configuration from JSON
 char private_key[] = WIREGUARD_PRIVATE_KEY;          // [Interface] PrivateKey
@@ -26,6 +27,10 @@ static WireGuard wg;
 boolean Wificonnect = true;
 int count;
 bool isConnected = false;
+
+
+
+
 
 
 void connectToKnownWIFI()
@@ -97,7 +102,10 @@ void connectToKnownWIFI()
                         Serial.println("Connected to WiFi");
                         display->println("Connected to WiFi");
                         display->display();
-                        //connectWireguard();
+
+                        //save the network index to RTC memory
+                        network_index = i;
+                        connectWireguard();
                         delay(500);
                         
                         break;
@@ -119,13 +127,6 @@ void connectToKnownWIFI()
     // Wait a bit before scanning again
     delay(5000);
 }
-
-
-
-
-
-
-
 
 //Function to connect to a WiFi network
 bool connectToWifiNetwork(const char *ssid, const char *password)
@@ -196,4 +197,13 @@ void connectWireguard()
         endpoint_port);
     delay(1000);
     Serial.println("WireGuard initialized");
+}
+
+
+String getConnectedSSID()
+{
+    if (WiFi.status() != WL_CONNECTED)
+    {
+        return "";
+    }else {return String(ssid[network_index]);}
 }
